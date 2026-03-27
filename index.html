@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SK Products - Data Entry</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d; --surface: #161616; --surface2: #1f1f1f; --border: #2a2a2a;
+    --gold: #c9a84c; --text: #f0ede8; --text-muted: #888;
+    --success: #52b788; --danger: #e05252;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; height: 100vh; overflow-y: auto; }
+  
+  .page { display: none; padding: 2rem; max-width: 600px; margin: 0 auto; padding-bottom: 100px; }
+  .page.active { display: block; animation: slideIn 0.3s ease-out; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .login-container { margin-top: 30vh; background: var(--surface); padding: 2rem; border-radius: 16px; border: 1px solid var(--border); text-align: center; }
+  
+  .field { margin-bottom: 1.2rem; text-align: left; }
+  .field label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; font-weight: bold; }
+  .field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; color: #fff; font-size: 1rem; outline: none; transition: 0.2s; }
+  .field input:focus { border-color: var(--gold); }
+
+  .btn-main { width: 100%; background: var(--gold); color: #000; border: none; padding: 1rem; border-radius: 8px; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; }
+  .btn-main:hover { opacity: 0.9; }
+  .btn-main:disabled { opacity: 0.5; cursor: wait; }
+
+  /* Product Entry Card */
+  .product-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
+  .card-number { position: absolute; top: -10px; left: -10px; background: var(--gold); color: #000; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  
+  .photo-upload { border: 2px dashed var(--border); border-radius: 12px; padding: 1rem; text-align: center; cursor: pointer; transition: 0.2s; background: var(--surface2); }
+  .photo-upload:hover { border-color: var(--gold); }
+  .photo-preview { width: 100%; height: 200px; object-fit: contain; border-radius: 8px; margin-top: 10px; display: none; background: #000; }
+  
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); padding: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: center; z-index: 100; }
+  
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #000; padding: 1rem 2rem; border-radius: 50px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 3000; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<div class="page active" id="page-login">
+  <div class="login-container">
+    <h2 style="color: var(--gold); margin-bottom: 1.5rem;">Inventory Login</h2>
+    <div class="field">
+      <label>User ID</label>
+      <input type="text" id="admin-id" placeholder="Enter User ID">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="admin-pass" placeholder="Enter Password">
+    </div>
+    <button class="btn-main" onclick="handleLogin()">Login</button>
+  </div>
+</div>
+
+<div class="page" id="page-entry">
+  <div style="margin-bottom: 2rem;">
+    <h2 style="color: var(--gold);">Data Entry Portal</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">Fill out up to 10 products at once. Leave empty blocks blank if not needed.</p>
+  </div>
+
+  <div id="forms-container"></div>
+</div>
+
+<div class="bottom-bar" id="bottom-bar" style="display: none;">
+    <button class="btn-main" id="submit-btn" style="max-width: 600px;" onclick="submitProducts()">Upload Products to Shop</button>
+</div>
+
+<script>
+// IMPORTANT: Paste your NEW Google Apps Script URL here!
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxd-VY1Ji4wp68Bo5v6S8RdRUQIukc0ziDM2F86y2FepriByhftQhxNUIGeJxGLhNIH/exec';
+
+function showToast(m) { const t = document.getElementById('toast'); t.innerText = m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
+
+function handleLogin() {
+  const id = document.getElementById('admin-id').value;
+  const pass = document.getElementById('admin-pass').value;
+  
+  if (id === 'samimedical' && pass === '1234') {
+    document.getElementById('page-login').classList.remove('active');
+    generateForms();
+    document.getElementById('page-entry').classList.add('active');
+    document.getElementById('bottom-bar').style.display = 'flex';
+  } else {
+    showToast("Invalid ID or Password");
+  }
+}
+
+// Generate 10 blank product forms
+function generateForms() {
+  let html = '';
+  for (let i = 1; i <= 10; i++) {
+    html += `
+      <div class="product-card" id="card-${i}">
+        <div class="card-number">${i}</div>
+        <div class="field">
+          <label>Product Name</label>
+          <input type="text" id="name-${i}" placeholder="e.g., Chicken Biriyani">
+        </div>
+        
+        <div class="grid-2">
+          <div class="field">
+            <label>MRP (₹)</label>
+            <input type="number" id="mrp-${i}" placeholder="0" oninput="calcPrice(${i})">
+          </div>
+          <div class="field">
+            <label>Discount (%)</label>
+            <input type="number" id="discount-${i}" placeholder="0" oninput="calcPrice(${i})">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Final Price (₹)</label>
+          <input type="number" id="price-${i}" placeholder="0">
+        </div>
+
+        <div class="field">
+          <label>Product Photo</label>
+          <div class="photo-upload" onclick="document.getElementById('file-${i}').click()">
+            📷 Tap to take a photo
+          </div>
+          <input type="file" id="file-${i}" accept="image/*" capture="environment" style="display:none;" onchange="previewImage(event, ${i})">
+          <img id="preview-${i}" class="photo-preview">
+          <input type="hidden" id="b64-${i}">
+        </div>
+      </div>
+    `;
+  }
+  document.getElementById('forms-container').innerHTML = html;
+}
+
+// Auto-calculate the final price based on MRP and Discount
+function calcPrice(index) {
+    const mrp = parseFloat(document.getElementById(`mrp-${index}`).value) || 0;
+    const discount = parseFloat(document.getElementById(`discount-${index}`).value) || 0;
+    const priceField = document.getElementById(`price-${index}`);
+    
+    if (mrp > 0) {
+        const finalPrice = mrp - (mrp * (discount / 100));
+        priceField.value = Math.round(finalPrice);
+    }
+}
+
+// Image Compressor: Shrinks massive phone photos so they don't crash the upload
+function compressAndConvertImage(file, callback) {
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = function(event) {
+    const img = new Image();
+    img.src = event.target.result;
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 800; // Resize width to 800px max to save data
+      let scaleSize = 1;
+      
+      if (img.width > MAX_WIDTH) {
+          scaleSize = MAX_WIDTH / img.width;
+      }
+      
+      canvas.width = img.width * scaleSize;
+      canvas.height = img.height * scaleSize;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      // Convert to compressed JPEG (70% quality)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      callback(dataUrl);
+    }
+  };
+}
+
+// Triggered when a photo is taken
+function previewImage(event, index) {
+  const file = event.target.files[0];
+  if (file) {
+    const preview = document.getElementById(`preview-${index}`);
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    
+    // Compress immediately and save to the hidden field
+    compressAndConvertImage(file, function(base64Str) {
+        document.getElementById(`b64-${index}`).value = base64Str;
+    });
+  }
+}
+
+// Collect data and send to Google Apps Script
+function submitProducts() {
+  const btn = document.getElementById('submit-btn');
+  const productsToUpload = [];
+
+  for (let i = 1; i <= 10; i++) {
+    const name = document.getElementById(`name-${i}`).value.trim();
+    if (name) {
+      productsToUpload.push({
+        name: name,
+        mrp: document.getElementById(`mrp-${i}`).value || 0,
+        discount: document.getElementById(`discount-${i}`).value || 0,
+        price: document.getElementById(`price-${i}`).value || 0,
+        imageBase64: document.getElementById(`b64-${i}`).value || ""
+      });
+    }
+  }
+
+  if (productsToUpload.length === 0) {
+    return showToast("Please fill out at least one product!");
+  }
+
+  btn.innerText = `Uploading ${productsToUpload.length} Products... Please Wait!`;
+  btn.disabled = true;
+
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: 'uploadProducts', products: productsToUpload })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      showToast("Products Uploaded Successfully!");
+      setTimeout(() => location.reload(), 2000); // Reload page to clear form
+    } else {
+      showToast("Error uploading products.");
+      btn.innerText = "Upload Products to Shop";
+      btn.disabled = false;
+    }
+  })
+  .catch(err => {
+    console.error("Upload error:", err);
+    showToast("Network error during upload.");
+    btn.innerText = "Upload Products to Shop";
+    btn.disabled = false;
+  });
+}
+</script>
+</body>
+</html>
