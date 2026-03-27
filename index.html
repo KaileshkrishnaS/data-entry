@@ -84,8 +84,8 @@
 </div>
 
 <script>
-// YOUR NEWLY AUTHORIZED APPS SCRIPT URL!
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVlZ0olB8ApFZc2IMcEgsOSBsYiRznoSpV32wAq0rzg61cnLJZJY249a2nKU-gMD5e/exec';
+// YOUR AUTHORIZED APPS SCRIPT URL
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwidZxM2KfCrOHfrrD2JFp4e2hD1sp7J5zyxYKVBYiUtmYo7WIt-7e7w9AEkLJNHSQb/exec';
 
 let currentStream = null;
 
@@ -273,7 +273,7 @@ function handleFileUpload(event, index) {
   };
 }
 
-// --- SMART ERROR DETECTOR ---
+// --- SMART ERROR DETECTOR (NO LOGOUT FIX) ---
 async function submitProducts() {
   stopCamera(); 
 
@@ -311,18 +311,24 @@ async function submitProducts() {
     const text = await res.text();
     
     try {
-      // Try to read it as JSON
       const data = JSON.parse(text);
       if (data.success) {
         showToast("Products Uploaded Successfully!");
-        setTimeout(() => location.reload(), 2000); 
+        
+        // Wipe the blocks clean without reloading the page, keeping the user logged in
+        setTimeout(() => {
+          generateForms(); 
+          window.scrollTo({ top: 0, behavior: 'smooth' }); 
+          btn.innerText = "Upload Products to Shop"; 
+          btn.disabled = false;
+        }, 2000); 
+        
       } else {
         showToast("Error: " + (data.error || "Unknown error"));
         btn.innerText = "Upload Products to Shop";
         btn.disabled = false;
       }
     } catch (parseErr) {
-      // If it's HTML, the Apps Script crashed!
       console.error("Google Crash Response:", text);
       showToast("Google Script Crash! Did you update the Folder ID and Deploy a NEW version?");
       btn.innerText = "Upload Products to Shop";
