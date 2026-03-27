@@ -29,19 +29,17 @@
   .btn-main:hover { opacity: 0.9; }
   .btn-main:disabled { opacity: 0.5; cursor: wait; }
 
-  /* Product Entry Card */
   .product-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
   .card-number { position: absolute; top: -10px; left: -10px; background: var(--gold); color: #000; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
   
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   
-  /* NEW CAMERA UI STYLES */
   .photo-actions { display: flex; gap: 10px; margin-bottom: 10px; }
   .photo-btn { flex: 1; padding: 12px 5px; text-align: center; background: var(--surface2); border: 1px solid var(--gold); border-radius: 8px; color: var(--gold); font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
   .photo-btn:hover { background: var(--gold); color: #000; }
   
   .camera-container { position: relative; width: 100%; border-radius: 8px; overflow: hidden; display: none; background: #000; margin-top: 10px; border: 2px solid var(--gold); }
-  .video-preview { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+  .video-preview { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; transform: scaleX(-1); } /* Mirrored for front camera */
   .capture-btn { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #000; border: none; padding: 10px 24px; border-radius: 20px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 10; }
   
   .photo-preview { width: 100%; height: 200px; object-fit: contain; border-radius: 8px; margin-top: 10px; display: none; background: #000; border: 1px solid var(--border); }
@@ -88,15 +86,15 @@
 // IMPORTANT: Paste your Google Apps Script URL here!
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxd-VY1Ji4wp68Bo5v6S8RdRUQIukc0ziDM2F86y2FepriByhftQhxNUIGeJxGLhNIH/exec';
 
-let currentStream = null; // Keeps track of the active camera
+let currentStream = null;
 
-function showToast(m) { const t = document.getElementById('toast'); t.innerText = m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
+function showToast(m) { const t = document.getElementById('toast'); t.innerText = m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 4000); }
 
 function handleLogin() {
   const id = document.getElementById('admin-id').value;
   const pass = document.getElementById('admin-pass').value;
   
-  if (id === 'samimedical' && pass === '1234') {
+  if (id === 'online' && pass === '1234') {
     document.getElementById('page-login').classList.remove('active');
     generateForms();
     document.getElementById('page-entry').classList.add('active');
@@ -106,7 +104,6 @@ function handleLogin() {
   }
 }
 
-// Generate 10 product forms with Gym Camera Logic built-in
 function generateForms() {
   let html = '';
   for (let i = 1; i <= 10; i++) {
@@ -136,12 +133,11 @@ function generateForms() {
 
         <div class="field">
           <label>Product Photo</label>
-          
           <div class="photo-actions" id="actions-${i}">
              <label class="photo-btn" for="upload-${i}">📁 Gallery File</label>
              <input type="file" id="upload-${i}" accept="image/*" style="display:none;" onchange="handleFileUpload(event, ${i})">
              
-             <button type="button" class="photo-btn" onclick="openCamera(${i})">🤳 Live Camera</button>
+             <button type="button" class="photo-btn" onclick="openCamera(${i})">🤳 Front Camera</button>
           </div>
           
           <div class="camera-container" id="camera-container-${i}">
@@ -151,9 +147,7 @@ function generateForms() {
           
           <img id="preview-${i}" class="photo-preview">
           <canvas id="canvas-${i}" style="display:none;"></canvas>
-          
           <button type="button" class="photo-btn" id="retake-${i}" style="display:none; width:100%; margin-top:10px; border-color:var(--danger); color:var(--danger);" onclick="resetPhoto(${i})">↩ Retake Photo</button>
-          
           <input type="hidden" id="b64-${i}">
         </div>
       </div>
@@ -162,7 +156,6 @@ function generateForms() {
   document.getElementById('forms-container').innerHTML = html;
 }
 
-// Auto-calculate Price
 function calcPrice(index) {
     const mrp = parseFloat(document.getElementById(`mrp-${index}`).value) || 0;
     const discount = parseFloat(document.getElementById(`discount-${index}`).value) || 0;
@@ -172,12 +165,9 @@ function calcPrice(index) {
     }
 }
 
-// --- CAMERA LOGIC (Adapted from Gym App) ---
-
+// --- FRONT CAMERA LOGIC ---
 function openCamera(index) {
-  // If another camera is open, shut it down first
   stopCamera();
-  
   const video = document.getElementById(`video-${index}`);
   const container = document.getElementById(`camera-container-${index}`);
   const actions = document.getElementById(`actions-${index}`);
@@ -187,18 +177,17 @@ function openCamera(index) {
     return;
   }
 
-  // Request Rear Camera (environment)
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+  // FORCE FRONT CAMERA: ideal: 'user'
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'user' } }, audio: false })
     .then(function(stream) {
       currentStream = stream;
       video.srcObject = stream;
       video.play();
-      
       actions.style.display = 'none';
       container.style.display = 'block';
     })
     .catch(function(err) {
-      alert('Camera error: ' + err.message + '\nMake sure site is on HTTPS and permissions are allowed.');
+      alert('Camera error: ' + err.message + '\nMake sure site is on HTTPS.');
     });
 }
 
@@ -210,25 +199,27 @@ function snapPhoto(index) {
   const b64Input = document.getElementById(`b64-${index}`);
   const retakeBtn = document.getElementById(`retake-${index}`);
 
-  // Set canvas size (compress to max 800px width to save data)
+  // HEAVY COMPRESSION: Max 600px width
   let width = video.videoWidth || 640;
   let height = video.videoHeight || 480;
-  if(width > 800) {
-      height = Math.round((height * 800) / width);
-      width = 800;
+  if(width > 600) {
+      height = Math.round((height * 600) / width);
+      width = 600;
   }
   canvas.width = width;
   canvas.height = height;
   
   const ctx = canvas.getContext('2d');
-  // Draw the video frame to the canvas
+  
+  // Mirror the canvas so the saved photo matches the front camera preview
+  ctx.translate(width, 0);
+  ctx.scale(-1, 1);
   ctx.drawImage(video, 0, 0, width, height);
   
-  // Extract Base64
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  // Compress to 60% JPEG quality to ensure no network timeouts
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
   b64Input.value = dataUrl;
   
-  // Update UI
   preview.src = dataUrl;
   preview.style.display = 'block';
   container.style.display = 'none';
@@ -253,11 +244,9 @@ function resetPhoto(index) {
   document.getElementById(`upload-${index}`).value = "";
 }
 
-// --- FILE UPLOAD LOGIC (Fallback) ---
 function handleFileUpload(event, index) {
   const file = event.target.files[0];
   if (!file) return;
-  
   const reader = new FileReader();
   reader.readAsDataURL(file);
   reader.onload = function(e) {
@@ -267,18 +256,15 @@ function handleFileUpload(event, index) {
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-      
-      if(width > 800) {
-          height = Math.round((height * 800) / width);
-          width = 800;
+      if(width > 600) {
+          height = Math.round((height * 600) / width);
+          width = 600;
       }
       canvas.width = width;
       canvas.height = height;
-      
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
-      
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
       
       document.getElementById(`b64-${index}`).value = dataUrl;
       document.getElementById(`preview-${index}`).src = dataUrl;
@@ -289,9 +275,9 @@ function handleFileUpload(event, index) {
   };
 }
 
-// Collect data and send to Google Apps Script
-function submitProducts() {
-  stopCamera(); // Safety catch
+// --- SMART ERROR DETECTOR ---
+async function submitProducts() {
+  stopCamera(); 
 
   const btn = document.getElementById('submit-btn');
   const productsToUpload = [];
@@ -313,32 +299,44 @@ function submitProducts() {
     return showToast("Please fill out at least one product!");
   }
 
-  btn.innerText = `Uploading ${productsToUpload.length} Products... Please Wait!`;
+  btn.innerText = `Uploading... Please Wait!`;
   btn.disabled = true;
 
-  fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: 'uploadProducts', products: productsToUpload })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      showToast("Products Uploaded Successfully!");
-      setTimeout(() => location.reload(), 2000); 
-    } else {
-      showToast("Error uploading products.");
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: 'uploadProducts', products: productsToUpload })
+    });
+
+    const text = await res.text();
+    
+    try {
+      // Try to read it as JSON
+      const data = JSON.parse(text);
+      if (data.success) {
+        showToast("Products Uploaded Successfully!");
+        setTimeout(() => location.reload(), 2000); 
+      } else {
+        showToast("Error: " + (data.error || "Unknown error"));
+        btn.innerText = "Upload Products to Shop";
+        btn.disabled = false;
+      }
+    } catch (parseErr) {
+      // If it's HTML, the Apps Script crashed!
+      console.error("Google Crash Response:", text);
+      showToast("Google Script Crash! Did you update the Folder ID and Deploy a NEW version?");
       btn.innerText = "Upload Products to Shop";
       btn.disabled = false;
     }
-  })
-  .catch(err => {
-    console.error("Upload error:", err);
-    showToast("Network error during upload.");
+    
+  } catch (err) {
+    console.error("True Network Error:", err);
+    showToast("Internet disconnected or severe timeout.");
     btn.innerText = "Upload Products to Shop";
     btn.disabled = false;
-  });
+  }
 }
 </script>
 </body>
